@@ -3,9 +3,11 @@ package com.example.sqliteapp
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import android.window.SplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -26,19 +29,25 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.sqliteapp.db.DatabaseOpenHelper
 import com.example.sqliteapp.models.User
 import com.example.sqliteapp.ui.theme.SQLiteAppTheme
+import kotlinx.coroutines.delay
 
 
 class MainActivity : ComponentActivity() {
@@ -48,7 +57,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         dbHelper = DatabaseOpenHelper(this)
         setContent {
-            AddUser(this, dbHelper)
+            var showSplash by remember { mutableStateOf(true) }
+            if (showSplash) {
+                SplashScreen {
+                    showSplash = false
+                }
+            } else {
+                AddUser(this, dbHelper)
+            }
         }
     }
 }
@@ -177,6 +193,30 @@ fun AddUser(context: Context, dbHelper: DatabaseOpenHelper) {
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun SplashScreen(onTimeout: () -> Unit) {
+    LaunchedEffect(Unit) {
+        delay(3000)
+        onTimeout()
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color.White
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = "Splash Logo",
+                modifier = Modifier.size(150.dp)
+            )
         }
     }
 }
