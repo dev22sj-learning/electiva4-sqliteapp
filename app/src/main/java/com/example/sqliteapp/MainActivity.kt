@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,15 +48,17 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         dbHelper = DatabaseOpenHelper(this)
         setContent {
-            addUser(this, dbHelper)
+            AddUser(this, dbHelper)
         }
     }
 }
 
 @Composable
-fun addUser(context: Context, dbHelper: DatabaseOpenHelper) {
+fun AddUser(context: Context, dbHelper: DatabaseOpenHelper) {
     val genderOptions = listOf("Male", "Female", "Other")
     var expanded by remember { mutableStateOf(false) }
+
+    var editingUserId by remember { mutableStateOf<Int?>(null) }
 
     var name by remember { mutableStateOf("") }
     var lastname by remember { mutableStateOf("") }
@@ -65,6 +68,15 @@ fun addUser(context: Context, dbHelper: DatabaseOpenHelper) {
     var email by remember { mutableStateOf("") }
 
     var users by remember { mutableStateOf(dbHelper.getAllUsers()) }
+
+    fun clearFields() {
+        name = ""
+        lastname = ""
+        age = ""
+        gender = ""
+        phone = ""
+        email = ""
+    }
 
     Column (modifier = Modifier.padding(50.dp)) {
         TextField(value = name, onValueChange = {name = it}, label = { Text("Name") })
@@ -118,34 +130,59 @@ fun addUser(context: Context, dbHelper: DatabaseOpenHelper) {
                 phone = phone,
                 email = email
             )
-            if (dbHelper.insertUser(user)) {
-                Toast.makeText(
-                    context,
-                    "User created successfully",
-                    Toast.LENGTH_LONG
-                ).show()
-                users = dbHelper.getAllUsers()
+            if (editingUserId != null) {
+                val updatedUser = user.copy(id = editingUserId)
+                if (dbHelper.updateUser(updatedUser)) {
+                    showLengthToast(context,"User updated successfully")
+                    editingUserId = null
+                    clearFields()
+                } else {
+                    showLengthToast(context,"Error editing user")
+                }
             } else {
-                Toast.makeText(
-                    context,
-                    "Error creating user",
-                    Toast.LENGTH_LONG
-                ).show()
+                if (dbHelper.insertUser(user)) {
+                    showLengthToast(context,"User created successfully")
+                    clearFields()
+                } else {
+                    showLengthToast(context,"Error creating user")
+                }
             }
+            users = dbHelper.getAllUsers()
         }) {
-            Text("Insert User")
+            Text(
+                text = if (editingUserId == null) "Insert User" else "Update User"
+            )
         }
         Spacer(Modifier.height(16.dp))
         LazyColumn (modifier = Modifier.fillMaxSize()) {
             items(users) { user ->
-                userRow(user)
+                UserRow(user = user,
+                    onEdit = {
+                        editingUserId = user.id
+                        name = user.name
+                        lastname = user.lastname
+                        age = (user.age ?: 0).toString()
+                        gender = user.gender
+                        phone = user.phone
+                        email = user.email
+                    },
+                    onDelete = {
+                        if (user.id != null && dbHelper.deleteUser(user.id)) {
+                            editingUserId = null
+                            users = dbHelper.getAllUsers()
+                            showLengthToast(context,"User deleted successfully")
+                        } else {
+                            showLengthToast(context,"Error deleting user")
+                        }
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun userRow(user: User) {
+fun UserRow(user: User, onEdit: () -> Unit, onDelete: () -> Unit) {
     Column (modifier = Modifier.padding(8.dp).fillMaxSize()) {
         Text( text = "Name: ${user.name}" )
         Text( text = "Lastname: ${user.lastname}" )
@@ -153,6 +190,23 @@ fun userRow(user: User) {
         Text( text = "Gender: ${user.gender}" )
         Text( text = "Phone: ${user.phone}" )
         Text( text = "Email: ${user.email}" )
+        Row {
+            Button(onClick = onEdit) {
+                Text("Edit")
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(onClick = onDelete) {
+                Text("Delete")
+            }
+        }
         Spacer(Modifier.height(8.dp))
     }
+}
+
+fun showLengthToast(context: Context, message: String) {
+    Toast.makeText(
+        context,
+        message,
+        Toast.LENGTH_LONG
+    ).show()
 }

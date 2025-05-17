@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
 import com.example.sqliteapp.models.User
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,7 +50,86 @@ class DatabaseOpenHelper(context: Context): SQLiteOpenHelper(context, DATABASE_N
 
     fun insertUser(user: User): Boolean {
         val db = writableDatabase
-        val values = ContentValues().apply {
+        val values = setContentUserValues(user)
+        db.use {
+            return try {
+                val result = db.insert(TABLE_NAME, null, values);
+                result != -1L;
+            } catch (e: Exception) {
+                Log.e("Database", "Error al registrar usuario: ", e)
+                false
+            }
+        }
+    }
+
+    fun getAllUsers(): List<User> {
+        val db = readableDatabase
+        val users = mutableListOf<User>()
+        db.use {
+            try {
+                val cursor = db.query(
+                    TABLE_NAME,
+//                    si consultamos siempre todas las columas podemos pasar este parametro como Null
+//                    arrayOf(COLUMN_ID, COLUMN_NAME, COLUMN_LASTNAME, COLUMN_AGE,
+//                        COLUMN_GENDER, COLUMN_PHONE, COLUMN_EMAIL),
+                    null, null, null, null, null, null
+                )
+                // Usamos "use" para cerrar automáticamente el cursor
+                cursor.use { c ->
+                    while (c.moveToNext()) {
+                        users.add(
+                            User(
+                                id = c.getInt(c.getColumnIndexOrThrow(COLUMN_ID)),
+                                name = c.getString(c.getColumnIndexOrThrow(COLUMN_NAME)),
+                                lastname = c.getString(c.getColumnIndexOrThrow(COLUMN_LASTNAME)),
+                                age = if (c.isNull(c.getColumnIndexOrThrow(COLUMN_AGE)))
+                                    null
+                                else
+                                    c.getInt(c.getColumnIndexOrThrow(COLUMN_AGE)),
+                                gender = c.getString(c.getColumnIndexOrThrow(COLUMN_GENDER)),
+                                phone = c.getString(c.getColumnIndexOrThrow(COLUMN_PHONE)),
+                                email = c.getString(c.getColumnIndexOrThrow(COLUMN_EMAIL))
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("Database", "Error al consultando usuarios: ", e)
+            }
+            return  users
+        }
+    }
+
+    fun deleteUser(id: Int): Boolean {
+        val db = writableDatabase
+        db.use { // ¡Se cierra solo al terminar!
+            return try {
+                val result = db.delete(TABLE_NAME, "$COLUMN_ID=?", arrayOf(id.toString()))
+                result > 0
+            } catch (e: Exception) {
+                Log.e("Database", "Error al borrar usuario: $id", e)
+                false
+            }
+        }
+    }
+
+    fun updateUser(user: User): Boolean {
+        if (user.id == null) return false;
+        val db = writableDatabase
+        db.use {
+            return try {
+                val values = setContentUserValues(user)
+                val result = db.update(TABLE_NAME, values, "$COLUMN_ID=?", arrayOf(user.id.toString()))
+                result > 0
+            } catch (e: Exception) {
+                Log.e("Database", "Error al actualizar usuario: ${user.id}", e)
+                false
+            }
+        }
+    }
+
+    private fun setContentUserValues(user: User): ContentValues {
+        return ContentValues().apply {
             put(COLUMN_NAME, user.name)
             put(COLUMN_LASTNAME, user.lastname)
             put(COLUMN_AGE, user.age ?: 0)
@@ -57,51 +137,5 @@ class DatabaseOpenHelper(context: Context): SQLiteOpenHelper(context, DATABASE_N
             put(COLUMN_PHONE, user.phone)
             put(COLUMN_EMAIL, user.email)
         }
-
-        try {
-            val result = db.insert(TABLE_NAME, null, values);
-            return  result != -1L;
-        } catch (e: Exception) {
-            return  false
-        } finally {
-            db.close()
-        }
     }
-
-    fun getAllUsers(): List<User> {
-        val db = readableDatabase
-        return try {
-            val users = mutableListOf<User>()
-
-            val cursor = db.query(
-                TABLE_NAME,
-                arrayOf(COLUMN_ID, COLUMN_NAME, COLUMN_LASTNAME, COLUMN_AGE,
-                    COLUMN_GENDER, COLUMN_PHONE, COLUMN_EMAIL),
-                null, null, null, null, null
-            )
-
-            // Usamos "use" para cerrar automáticamente el cursor
-            cursor.use { c ->
-                while (c.moveToNext()) {
-                    val user = User(
-                        id = c.getInt(c.getColumnIndexOrThrow(COLUMN_ID)),
-                        name = c.getString(c.getColumnIndexOrThrow(COLUMN_NAME)),
-                        lastname = c.getString(c.getColumnIndexOrThrow(COLUMN_LASTNAME)),
-                        age = if (c.isNull(c.getColumnIndexOrThrow(COLUMN_AGE)))
-                            null
-                        else
-                            c.getInt(c.getColumnIndexOrThrow(COLUMN_AGE)),
-                        gender = c.getString(c.getColumnIndexOrThrow(COLUMN_GENDER)),
-                        phone = c.getString(c.getColumnIndexOrThrow(COLUMN_PHONE)),
-                        email = c.getString(c.getColumnIndexOrThrow(COLUMN_EMAIL))
-                    )
-                    users.add(user)
-                }
-            }
-            users
-        } finally {
-            db.close()
-        }
-    }
-
 }
